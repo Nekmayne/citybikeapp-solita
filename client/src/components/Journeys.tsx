@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Loading from "./Loading";
 import "./Journeys.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 interface BikeData {
   departure: string;
@@ -10,11 +11,14 @@ interface BikeData {
   return_station_id: string;
   return_station_name: string;
   covered_distance: string;
-  duration: string;
+  duration: number;
+  first: string | number;
 }
 
 interface PaginatedData {
   data: BikeData[];
+  sortKey: string;
+  sortOrder: "asc" | "desc";
   page: number;
   pages: number;
 }
@@ -22,24 +26,35 @@ interface PaginatedData {
 const BikeList: React.FC = () => {
   const [bikeData, setBikeData] = useState<PaginatedData>();
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortKey, setSortKey] = useState<keyof BikeData>("departure");
 
   useEffect(() => {
-    const fetchBikeData = async () => {
-      const response = await fetch(
-        `http://localhost:3000/bikedata?page=${currentPage}`
-      );
-      const data = await response.json();
-      setBikeData(data);
-    };
-
     fetchBikeData();
-  }, [currentPage]);
+  }, [currentPage, sortOrder, sortKey]);
+
+  const fetchBikeData = async () => {
+    const response = await fetch(
+      `http://localhost:3000/bikedata?page=${currentPage}&sortKey=${sortKey}&sortOrder=${sortOrder}`
+    );
+    const data = await response.json();
+    setBikeData(data);
+  };
 
   const handlePageChange = (page: number) => {
+    if (!bikeData) return;
+    if (page > bikeData.pages) {
+      page = bikeData.pages;
+    }
     setTimeout(() => {
       setCurrentPage(page);
       setBikeData(undefined);
     }, 0);
+  };
+
+  const handleSort = (key: keyof BikeData) => {
+    setSortKey(key);
+    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
   };
 
   const formatDate = (dateString: string) => {
@@ -51,19 +66,47 @@ const BikeList: React.FC = () => {
     return <Loading />;
   }
 
+  const pageNumbers = [];
+  for (let i = 1; i <= bikeData.pages; i++) {
+    pageNumbers.push(i);
+  }
+
+  const startIndex = currentPage <= 3 ? 0 : currentPage - 3;
+
+  const endIndex =
+    currentPage === bikeData.pages ? bikeData.pages : currentPage + 2;
+  const pagesToShow = pageNumbers.slice(startIndex, endIndex);
+
   return (
     <div className="container">
+      <h1 className="header">Journeys</h1>
+      <div className="sort-text">
+        <h3>Sort data by clicking header</h3>
+      </div>
       <table>
         <thead>
-          <tr>
-            <th>Departure</th>
-            <th>Return</th>
-            <th>Departure Station ID</th>
-            <th>Departure Station Name</th>
-            <th>Return Station ID</th>
-            <th>Return Station Name</th>
-            <th>Covered Distance (m)</th>
-            <th>Duration (s)</th>
+          <tr className="table-headers">
+            <th className="departure" onClick={() => handleSort("departure")}>
+              Departure
+            </th>
+            <th onClick={() => handleSort("return")}>Return</th>
+            <th onClick={() => handleSort("departure_station_id")}>
+              Departure Station ID
+            </th>
+            <th onClick={() => handleSort("departure_station_name")}>
+              Departure Station Name
+            </th>
+
+            <th onClick={() => handleSort("return_station_id")}>
+              Return Station ID
+            </th>
+            <th onClick={() => handleSort("return_station_name")}>
+              Return Station Name
+            </th>
+            <th onClick={() => handleSort("covered_distance")}>
+              Covered Distance (m)
+            </th>
+            <th onClick={() => handleSort("duration")}>Duration (s)</th>
           </tr>
         </thead>
         <tbody>
@@ -92,43 +135,37 @@ const BikeList: React.FC = () => {
         </tbody>
       </table>
       <div className="pagination">
-        {bikeData.page > 1 && (
-          <button onClick={() => handlePageChange(1)}>First</button>
-        )}
         <button
-          disabled={bikeData.page === 1}
-          onClick={() => handlePageChange(bikeData.page - 1)}
+          disabled={currentPage === 1}
+          onClick={() => handlePageChange(1)}
         >
-          ← Previous
+          ← First
         </button>
-
-        {bikeData.page < bikeData.pages && bikeData.page !== bikeData.pages && (
-          <div className="pagination-numbers">
-            <button
-              className={currentPage === bikeData.page ? "current-page" : ""}
-            >
-              {bikeData.page}
-            </button>
-
-            <button onClick={() => handlePageChange(bikeData.page + 1)}>
-              {currentPage + 1}
-            </button>
-            <button onClick={() => handlePageChange(bikeData.page + 2)}>
-              {currentPage + 2}
-            </button>
-            <button onClick={() => handlePageChange(bikeData.page + 3)}>
-              {currentPage + 3}
-            </button>
-          </div>
-        )}
-        {bikeData.page < bikeData.pages && (
-          <button onClick={() => handlePageChange(bikeData.page + 1)}>
-            Next →
+        {currentPage > 4 && (
+          <button onClick={() => handlePageChange(currentPage - 3)}>
+            {currentPage - 3}
           </button>
         )}
-        {bikeData.page < bikeData.pages && (
-          <button onClick={() => handlePageChange(bikeData.pages)}>Last</button>
+        {pagesToShow.map((page) => (
+          <button
+            key={page}
+            onClick={() => handlePageChange(page)}
+            className={currentPage === page ? "selected" : ""}
+          >
+            {page}
+          </button>
+        ))}
+        {currentPage < bikeData.pages - 3 && (
+          <button onClick={() => handlePageChange(currentPage + 3)}>
+            {currentPage + 3}
+          </button>
         )}
+        <button
+          disabled={currentPage === bikeData.pages}
+          onClick={() => handlePageChange(bikeData.pages)}
+        >
+          Last →
+        </button>
       </div>
     </div>
   );

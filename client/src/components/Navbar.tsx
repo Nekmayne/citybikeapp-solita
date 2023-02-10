@@ -1,9 +1,9 @@
 import React from "react";
 import "./Navbar.css";
 
-interface NavbarProps {}
+interface Navbar {}
 
-const Navbar: React.FC<NavbarProps> = (props) => {
+const Navbar: React.FC<Navbar> = () => {
   return (
     <nav className="navbar">
       <ul className="navbar-list">
